@@ -19,7 +19,7 @@ def scrape_all():
         "news_paragraph": news_paragraph,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
-        "hemispheres": hemispheres(),
+        "hemispheres": hemispheres(browser),
         "last_modified": dt.datetime.now()
     }
     # Stop webdriver and return data
@@ -56,7 +56,7 @@ def mars_news(browser):
 
 def featured_image(browser):
     # Visit URL
-    url = 'https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/index.html'
+    url = 'https://spaceimages-mars.com'
     browser.visit(url)
 
     # Find and click the full image button
@@ -70,14 +70,14 @@ def featured_image(browser):
     # Add try/except for error handling
     try:
         # Find the relative image url
-        print(img_soup.find('img', class_='fancybox-image'))
+       # print(img_soup.find('img', class_='fancybox-image'))
         img_url_rel = img_soup.find('img', class_='fancybox-image').get('src')
 
     except AttributeError:
         return None
 
     # Use the base url to create an absolute url
-    img_url = f'https://data-class-jpl-space.s3.amazonaws.com/JPL_Space/{img_url_rel}'
+    img_url = f'https://spaceimages-mars.com/{img_url_rel}'
 
     return img_url
 
@@ -98,32 +98,39 @@ def mars_facts():
     return df.to_html(classes="table table-striped")
 
 # 3. Write code to retrieve the image urls and titles for each hemisphere.
-def hemispheres():
+def hemispheres(browser):
     
     executable_path = {'executable_path': ChromeDriverManager().install()}
     browser = Browser('chrome', **executable_path, headless=True)
-
-    # 2. Create a list to hold the images and titles.
-    hemisphere_img_urls = []
 
     # 1. Use browser to visit the URL
     url = 'https://astrogeology.usgs.gov/search/results?q=hemisphere+enhanced&k1=target&v1=Mars'
     browser.visit(url)
     
+
+    # 2. Create a list to hold the images and titles.
+    hemisphere_img_urls = []
+
+    # loop through required images
+# loop through required images
     for x in range(0,4):
-
-        # find all 4 links to navigate to full res img page
-        browser.find_by_css('a.product-item h3')[x].click()
-        
-        # call scraping func to pull the title and image urls from full res img page
-        img_and_titles = img_scrape(browser.html)
-        
-        # add the title and url to the dictionary
-        hemisphere_img_urls.append(img_and_titles)
-
-        # navigate back to the mars hemispheres home page
+        # find first link to the full images
+        full_image_elem = browser.find_by_tag('h3')[x]
+        full_image_elem.click()
+        # Parse the resulting html with soup
+        html = browser.html
+        img_soup = soup(html, 'html.parser')
+        # Find the relative image url
+        img_url_rel = img_soup.find('img', class_='wide-image', id=False).get('src')
+        # Use the base URL to create an absolute URL
+        img_url = f'https://astrogeology.usgs.gov/{img_url_rel}'
+        # Find the title of the image
+        img_title = img_soup.find('h2', class_='title').text
+        # Append the list with a dictionary of the url and title
+        hemisphere_img_urls.append({'img_url':img_url, 'title':img_title})
+        # back up 1 page
         browser.back()
-
+    browser.quit()
     return hemisphere_img_urls  
 
 def img_scrape(html_text):
